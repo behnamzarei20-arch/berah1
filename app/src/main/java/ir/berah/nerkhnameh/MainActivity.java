@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.os.Bundle;
 import android.os.AsyncTask;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
+import android.view.ScaleGestureDetector;
 import android.widget.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -39,33 +41,50 @@ public class MainActivity extends Activity {
     void buildUi() {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24,24,24,16);
-        root.setBackgroundColor(Color.WHITE);
+        root.setPadding(16,16,16,10);
+        root.setBackgroundColor(Color.rgb(248,248,248));
 
         TextView title = new TextView(this);
         title.setText("نرخنامه کرایه ۱۴۰۵");
-        title.setTextSize(24); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        title.setGravity(Gravity.CENTER); title.setTextColor(Color.rgb(21,101,192));
-        root.addView(title,new LinearLayout.LayoutParams(-1,70));
+        title.setTextSize(24);
+        title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        title.setGravity(Gravity.CENTER);
+        title.setTextColor(Color.rgb(25,25,25));
+        root.addView(title,new LinearLayout.LayoutParams(-1,64));
+
+        TextView origin = new TextView(this);
+        origin.setText("مبدا: قزوین");
+        origin.setTextSize(18);
+        origin.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        origin.setGravity(Gravity.CENTER);
+        origin.setTextColor(Color.rgb(25,25,25));
+        origin.setPadding(0,0,0,10);
+        root.addView(origin);
 
         search = new EditText(this);
-        search.setHint("جستجو در نرخنامه...");
+        search.setHint("مقصد یا نام شهر را جستجو کنید");
         search.setSingleLine(true);
         search.setTextSize(17);
-        search.setPadding(24,0,24,0);
-        root.addView(search,new LinearLayout.LayoutParams(-1,60));
+        search.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        search.setPadding(20,0,20,0);
+        search.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        search.setBackgroundColor(Color.WHITE);
+        root.addView(search,new LinearLayout.LayoutParams(-1,58));
 
         status = new TextView(this);
-        status.setText("در حال آماده‌سازی نرخنامه...");
-        status.setTextSize(14); status.setPadding(8,10,8,10);
+        status.setText("در حال آماده‌سازی...");
+        status.setTextSize(14);
+        status.setGravity(Gravity.RIGHT);
+        status.setPadding(4,8,4,8);
         root.addView(status);
 
         ScrollView sv = new ScrollView(this);
-        results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL);
+        results = new LinearLayout(this);
+        results.setOrientation(LinearLayout.VERTICAL);
+        results.setPadding(0,4,0,30);
         sv.addView(results);
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
 
-        search.setOnEditorActionListener((v,a,e)->{runSearch();return true;});
         search.addTextChangedListener(new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence s,int st,int c,int a){}
             public void onTextChanged(CharSequence s,int st,int b,int c){runSearch();}
@@ -78,56 +97,58 @@ public class MainActivity extends Activity {
         if(pages.isEmpty()) return;
         String q=norm(search.getText().toString().trim());
         results.removeAllViews();
+
         if(q.isEmpty()){
-            status.setText("۵۳ صفحه نرخنامه آماده است");
-            addAllPages();
+            status.setText("۵۳ صفحه آماده است — هر صفحه را باز کنید");
+            for(Page p:pages) addPageRow(p);
             return;
         }
+
         int count=0;
         for(Page p:pages){
-            String t=norm(p.text);
-            if(t.contains(q)){
-                addResult(p,q); count++;
-                if(count>=50) break;
+            if(norm(p.text).contains(q)){
+                addPageRow(p);
+                count++;
             }
         }
-        status.setText(count+" نتیجه");
+        status.setText(count==0 ? "در متن استخراج‌شده نتیجه‌ای پیدا نشد؛ صفحات را هم می‌توانید ببینید" : count+" صفحه مرتبط");
         if(count==0){
-            TextView x=label("نتیجه‌ای پیدا نشد");
-            results.addView(x);
+            TextView hint=label("نتیجه مستقیم پیدا نشد\nبرای دیدن جدول‌ها، جستجو را پاک کنید.");
+            results.addView(hint);
         }
     }
 
-    void addAllPages(){
-        for(Page p:pages) addResult(p,"");
-    }
+    void addPageRow(Page p) {
+        LinearLayout card=new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(14,12,14,12);
+        card.setBackgroundColor(Color.WHITE);
+        card.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-    void addResult(Page p,String q){
-        TextView v=label("صفحه "+p.number+"\n"+snippet(p.text,q));
-        v.setOnClickListener(x->showPage(p.number));
-        results.addView(v);
+        TextView h=label("صفحه "+p.number+"  |  مبدا: قزوین");
+        h.setTextSize(17);
+        h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        card.addView(h);
+
+        Button open=new Button(this);
+        open.setText("باز کردن جدول به شکل عکس اصلی");
+        open.setOnClickListener(v->showPage(p.number));
+        card.addView(open,new LinearLayout.LayoutParams(-1,52));
+
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.setMargins(0,0,0,10);
+        results.addView(card,lp);
     }
 
     TextView label(String s){
         TextView v=new TextView(this);
-        v.setText(s); v.setTextSize(16); v.setTextColor(Color.DKGRAY);
+        v.setText(s);
+        v.setTextSize(16);
+        v.setTextColor(Color.DKGRAY);
         v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        v.setPadding(20,18,20,18);
-        v.setBackgroundResource(android.R.drawable.dialog_holo_light_frame);
+        v.setPadding(10,10,10,10);
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
-        lp.setMargins(0,0,0,10); v.setLayoutParams(lp);
         return v;
-    }
-
-    String snippet(String t,String q){
-        if(t==null||t.trim().isEmpty()) return "مشاهده جدول این صفحه";
-        t=t.replace("\n"," ").replaceAll("\\s+"," ").trim();
-        if(q.isEmpty()) return t.length()>140?t.substring(0,140)+"…":t;
-        String n=norm(t), nq=norm(q); int i=n.indexOf(nq);
-        if(i<0) return t.length()>140?t.substring(0,140)+"…":t;
-        int a=Math.max(0,i-55), z=Math.min(t.length(),i+nq.length()+85);
-        return (a>0?"…":"")+t.substring(a,z)+(z<t.length()?"…":"");
     }
 
     String norm(String s){
@@ -135,34 +156,85 @@ public class MainActivity extends Activity {
                 .replace('ۀ','ه').replace('ة','ه')
                 .replace('٠','۰').replace('١','۱').replace('٢','۲').replace('٣','۳')
                 .replace('٤','۴').replace('٥','۵').replace('٦','۶').replace('٧','۷')
-                .replace('٨','۸').replace('٩','۹').toLowerCase(Locale.ROOT);
+                .replace('٨','۸').replace('٩','۹').replace("\u200c"," ")
+                .toLowerCase(Locale.ROOT);
     }
 
     void showPage(int n){
-        final DialogLike d=new DialogLike(this);
-        d.show(n);
-    }
+        final Dialog dialog=new Dialog(this);
+        LinearLayout box=new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setBackgroundColor(Color.WHITE);
+        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-    class DialogLike {
-        Activity a; Dialog dialog;
-        DialogLike(Activity x){a=x;}
-        void show(int n){
-            dialog=new Dialog(a);
-            dialog.setTitle("صفحه "+n);
-            LinearLayout box=new LinearLayout(a); box.setOrientation(LinearLayout.VERTICAL);
-            ScrollView sv=new ScrollView(a);
-            ImageView im=new ImageView(a); im.setAdjustViewBounds(true);
-            File f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%02d",n)+".jpg");
-            if(!f.exists()) f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%03d",n)+".jpg");
-            im.setImageBitmap(BitmapFactory.decodeFile(f.getAbsolutePath()));
-            sv.addView(im); box.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-            Button close=new Button(a); close.setText("بستن"); close.setOnClickListener(v->dialog.dismiss());
-            box.addView(close);
-            dialog.setContentView(box);
-            Window w=dialog.getWindow(); if(w!=null) w.setLayout(-1,-1);
-            dialog.show();
-            if(dialog.getWindow()!=null) dialog.getWindow().setLayout(-1,-1);
-        }
+        LinearLayout top=new LinearLayout(this);
+        top.setOrientation(LinearLayout.VERTICAL);
+        top.setPadding(12,8,12,8);
+
+        TextView title=label("صفحه "+n+"  |  مبدا: قزوین");
+        title.setTextSize(19);
+        title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        top.addView(title);
+
+        EditText localSearch=new EditText(this);
+        localSearch.setHint("جستجو فقط در همین جدول");
+        localSearch.setSingleLine(true);
+        localSearch.setTextSize(16);
+        localSearch.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        localSearch.setPadding(18,0,18,0);
+        localSearch.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        localSearch.setBackgroundColor(Color.rgb(245,245,245));
+        top.addView(localSearch,new LinearLayout.LayoutParams(-1,54));
+        box.addView(top);
+
+        FrameLayout frame=new FrameLayout(this);
+        HorizontalScrollView hs=new HorizontalScrollView(this);
+        ScrollView vs=new ScrollView(this);
+        LinearLayout holder=new LinearLayout(this);
+        holder.setGravity(Gravity.CENTER);
+        ImageView im=new ImageView(this);
+        im.setAdjustViewBounds(true);
+        im.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        File f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%02d",n)+".jpg");
+        if(!f.exists()) f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%03d",n)+".jpg");
+        Bitmap bm=BitmapFactory.decodeFile(f.getAbsolutePath());
+        im.setImageBitmap(bm);
+        holder.addView(im,new LinearLayout.LayoutParams(-2,-2));
+        vs.addView(holder,new ScrollView.LayoutParams(-2,-2));
+        hs.addView(vs,new HorizontalScrollView.LayoutParams(-2,-2));
+        frame.addView(hs,new FrameLayout.LayoutParams(-1,-1));
+
+        TextView localStatus=label("");
+        localStatus.setTextSize(14);
+        localStatus.setGravity(Gravity.CENTER);
+        localStatus.setBackgroundColor(Color.WHITE);
+        localStatus.setVisibility(View.GONE);
+        frame.addView(localStatus,new FrameLayout.LayoutParams(-1,48,Gravity.TOP));
+
+        box.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
+
+        Button close=new Button(this);
+        close.setText("بستن");
+        close.setOnClickListener(v->dialog.dismiss());
+        box.addView(close,new LinearLayout.LayoutParams(-1,52));
+
+        localSearch.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int st,int c,int a){}
+            public void onTextChanged(CharSequence s,int st,int b,int c){
+                String q=norm(s.toString().trim());
+                if(q.isEmpty()){ localStatus.setVisibility(View.GONE); return; }
+                Page p=pages.get(n-1);
+                boolean found=norm(p.text).contains(q);
+                localStatus.setText(found ? "در متن این جدول پیدا شد" : "در متن استخراج‌شده این جدول پیدا نشد");
+                localStatus.setTextColor(found ? Color.rgb(0,120,60) : Color.rgb(170,0,0));
+                localStatus.setVisibility(View.VISIBLE);
+            }
+            public void afterTextChanged(android.text.Editable e){}
+        });
+
+        dialog.setContentView(box);
+        dialog.show();
+        if(dialog.getWindow()!=null) dialog.getWindow().setLayout(-1,-1);
     }
 
     class LoadTask extends AsyncTask<Void,Void,String>{
@@ -178,11 +250,7 @@ public class MainActivity extends Activity {
                     ZipEntry e; byte[] buf=new byte[8192];
                     while((e=zin.getNextEntry())!=null){
                         File out=new File(dataDir,e.getName());
-                        if(e.isDirectory()){
-                            out.mkdirs();
-                            zin.closeEntry();
-                            continue;
-                        }
+                        if(e.isDirectory()){out.mkdirs(); zin.closeEntry(); continue;}
                         File parent=out.getParentFile();
                         if(parent!=null) parent.mkdirs();
                         FileOutputStream fos=new FileOutputStream(out);
@@ -192,31 +260,30 @@ public class MainActivity extends Activity {
                     zin.close();
                 }
                 String json="";
-                try {
+                try{
                     InputStream jin=getAssets().open("ocr_all.json");
                     ByteArrayOutputStream jb=new ByteArrayOutputStream();
                     byte[] bx=new byte[8192]; int jn;
                     while((jn=jin.read(bx))>0) jb.write(bx,0,jn);
                     jin.close();
                     json=new String(jb.toByteArray(),StandardCharsets.UTF_8);
-                } catch(Exception ignored) {}
+                }catch(Exception ignored){}
                 if(!json.isEmpty()){
                     JSONObject jo=new JSONObject(json);
                     for(int i=1;i<=53;i++) pages.add(new Page(i,jo.optString(String.valueOf(i),"")));
-                } else {
+                }else{
                     for(int i=1;i<=53;i++){
                         File f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%02d",i)+".txt");
-                        if(!f.exists()) f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%03d",i)+".txt");
                         String t="";
                         if(f.exists()) t=new String(read(f),StandardCharsets.UTF_8);
                         pages.add(new Page(i,t));
                     }
                 }
                 return "ok";
-            }catch(Exception e){ return e.toString(); }
+            }catch(Exception e){return e.toString();}
         }
         protected void onPostExecute(String r){
-            if("ok".equals(r)){ status.setText("۵۳ صفحه نرخنامه آماده است"); runSearch(); }
+            if("ok".equals(r)) runSearch();
             else status.setText("خطا در آماده‌سازی: "+r);
         }
     }

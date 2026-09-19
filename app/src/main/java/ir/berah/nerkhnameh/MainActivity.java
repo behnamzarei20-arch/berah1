@@ -106,25 +106,61 @@ public class MainActivity extends Activity {
             return;
         }
 
-        int count=0;
-        for(Page p:pages){
-            if(matchesQuery(norm(p.text), q)){
-                addPageRow(p);
-                count++;
-            }
-        }
+        ArrayList<Page> found=new ArrayList<>();
+        for(Page p:pages) if(matchesQuery(norm(p.text), q)) found.add(p);
+        int count=found.size();
+        for(Page p:found) addPageRow(p);
         status.setText(count==0 ? "نتیجه‌ای پیدا نشد" : count+" صفحه مرتبط پیدا شد");
-        if(count==0){
-            TextView hint=label("عبارت را کوتاه‌تر کنید؛ مثلاً فقط نام شهر را وارد کنید.");
-            results.addView(hint);
-        }
+        if(count==0) results.addView(label("چیزی پیدا نشد. نام شهر را کوتاه‌تر و بدون کلمات اضافی وارد کنید."));
     }
 
     boolean matchesQuery(String haystack, String query){
-        if(query.isEmpty() || haystack.isEmpty()) return query.isEmpty();
+        if(query.isEmpty()) return true;
+        if(haystack.isEmpty()) return false;
+        String h=compact(haystack);
+        String q=compact(query);
+        if(h.contains(q)) return true;
         String[] terms=query.split(" ");
-        for(String term:terms) if(!term.isEmpty() && !haystack.contains(term)) return false;
-        return true;
+        int matched=0, total=0;
+        for(String term:terms){
+            if(term.isEmpty()) continue;
+            total++;
+            String t=compact(term);
+            if(h.contains(t) || fuzzyContains(h,t)) matched++;
+        }
+        if(total==0) return false;
+        return matched==total || (total>=2 && matched>=total-1);
+    }
+
+    String compact(String s){
+        return norm(s).replaceAll("[^\p{L}\p{Nd}]","");
+    }
+
+    boolean fuzzyContains(String haystack, String term){
+        if(term.length()<4) return false;
+        int maxErr=term.length()>=7 ? 2 : 1;
+        String[] words=norm(haystack).split(" ");
+        for(String w:words){
+            if(Math.abs(w.length()-term.length())>maxErr) continue;
+            if(editDistanceAtMost(w,term,maxErr)) return true;
+        }
+        return false;
+    }
+
+    boolean editDistanceAtMost(String a,String b,int limit){
+        int[] prev=new int[b.length()+1], cur=new int[b.length()+1];
+        for(int j=0;j<=b.length();j++) prev[j]=j;
+        for(int i=1;i<=a.length();i++){
+            cur[0]=i;
+            int min=cur[0];
+            for(int j=1;j<=b.length();j++){
+                cur[j]=Math.min(Math.min(cur[j-1]+1,prev[j]+1),prev[j-1]+(a.charAt(i-1)==b.charAt(j-1)?0:1));
+                if(cur[j]<min) min=cur[j];
+            }
+            int[] t=prev; prev=cur; cur=t;
+            if(min>limit) return false;
+        }
+        return prev[b.length()]<=limit;
     }
 
     void addPageRow(Page p) {
@@ -180,16 +216,21 @@ public class MainActivity extends Activity {
 
         LinearLayout top=new LinearLayout(this);
         top.setOrientation(LinearLayout.VERTICAL);
-        top.setPadding(12,8,12,8);
+        top.setPadding(8,6,8,6);
 
         TextView title=label("صفحه "+n+" از "+pages.size());
         title.setTextSize(19);
         title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         Button prev=new Button(this); prev.setText("‹ قبلی"); prev.setOnClickListener(v->{ dialog.dismiss(); if(n>1) showPage(n-1); });
         Button next=new Button(this); next.setText("بعدی ›"); next.setOnClickListener(v->{ dialog.dismiss(); if(n<pages.size()) showPage(n+1); });
-        top.addView(next,new LinearLayout.LayoutParams(90,52));
-        top.addView(title,new LinearLayout.LayoutParams(0,52,1));
-        top.addView(prev,new LinearLayout.LayoutParams(90,52));
+        LinearLayout nav=new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setGravity(Gravity.CENTER_VERTICAL);
+        nav.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        nav.addView(prev,new LinearLayout.LayoutParams(90,52));
+        nav.addView(title,new LinearLayout.LayoutParams(0,52,1));
+        nav.addView(next,new LinearLayout.LayoutParams(90,52));
+        top.addView(nav,new LinearLayout.LayoutParams(-1,52));
 
         EditText localSearch=new EditText(this);
         localSearch.setHint("جستجو فقط در همین جدول");
@@ -202,9 +243,9 @@ public class MainActivity extends Activity {
         top.addView(localSearch,new LinearLayout.LayoutParams(-1,54));
         box.addView(top);
 
-        FrameLayout frame=new FrameLayout(this);
         ScrollView vs=new ScrollView(this);
-        vs.setFillViewport(true);
+        vs.setFillViewport(false);
+        vs.setBackgroundColor(Color.WHITE);
         ImageView im=new ImageView(this);
         im.setAdjustViewBounds(true);
         im.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -215,16 +256,14 @@ public class MainActivity extends Activity {
         if(bm!=null) im.setImageBitmap(bm);
         im.setContentDescription("تصویر کامل صفحه "+n);
         vs.addView(im,new ScrollView.LayoutParams(-1,-2));
-        frame.addView(vs,new FrameLayout.LayoutParams(-1,-1));
+
+        box.addView(vs,new LinearLayout.LayoutParams(-1,0,1));
 
         TextView localStatus=label("");
         localStatus.setTextSize(14);
         localStatus.setGravity(Gravity.CENTER);
-        localStatus.setBackgroundColor(Color.WHITE);
         localStatus.setVisibility(View.GONE);
-        frame.addView(localStatus,new FrameLayout.LayoutParams(-1,48,Gravity.TOP));
-
-        box.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
+        box.addView(localStatus,new LinearLayout.LayoutParams(-1,42));
 
         Button close=new Button(this);
         close.setText("بستن");

@@ -40,12 +40,32 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Create release signing key
+        env:
+          KEYSTORE_PASSWORD: android
+          KEY_PASSWORD: android
+        run: |
+          keytool -genkeypair -v \
+            -keystore release.keystore \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -alias release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=RateSheet1405, OU=App, O=Local, L=Local, ST=Local, C=DE"
+
+      - name: Build installable release APK
+        env:
+          KEYSTORE_FILE: release.keystore
+          KEYSTORE_PASSWORD: android
+          KEY_ALIAS: release
+          KEY_PASSWORD: android
+        run: |
+          gradle assembleRelease --stacktrace
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nerkhnameh-1405-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: nerkhnameh-1405-installable-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

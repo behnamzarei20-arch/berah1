@@ -1,4 +1,5 @@
-plugins { id 'com.android.application' }
+plugins { id 'com.android.application'     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
 
 android {
     namespace 'ir.berah.nerkhnameh'

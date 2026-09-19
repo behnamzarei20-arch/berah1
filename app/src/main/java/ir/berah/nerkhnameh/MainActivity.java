@@ -25,10 +25,12 @@ public class MainActivity extends Activity {
     TextView status;
     File dataDir;
     ArrayList<Page> pages = new ArrayList<>();
+    HashMap<Integer,Page> pageByNumber = new HashMap<>();
+    boolean loaded = false;
 
     static class Page {
         int number; String text;
-        Page(int n, String t){ number=n; text=t; }
+        Page(int n, String t){ number=n; text=t == null ? "" : t; }
     }
 
     @Override public void onCreate(Bundle b) {
@@ -94,7 +96,7 @@ public class MainActivity extends Activity {
     }
 
     void runSearch() {
-        if(pages.isEmpty()) return;
+        if(!loaded) return;
         String q=norm(search.getText().toString().trim());
         results.removeAllViews();
 
@@ -106,16 +108,23 @@ public class MainActivity extends Activity {
 
         int count=0;
         for(Page p:pages){
-            if(norm(p.text).contains(q)){
+            if(matchesQuery(norm(p.text), q)){
                 addPageRow(p);
                 count++;
             }
         }
-        status.setText(count==0 ? "در متن استخراج‌شده نتیجه‌ای پیدا نشد؛ صفحات را هم می‌توانید ببینید" : count+" صفحه مرتبط");
+        status.setText(count==0 ? "نتیجه‌ای پیدا نشد" : count+" صفحه مرتبط پیدا شد");
         if(count==0){
-            TextView hint=label("نتیجه مستقیم پیدا نشد\nبرای دیدن جدول‌ها، جستجو را پاک کنید.");
+            TextView hint=label("عبارت را کوتاه‌تر کنید؛ مثلاً فقط نام شهر را وارد کنید.");
             results.addView(hint);
         }
+    }
+
+    boolean matchesQuery(String haystack, String query){
+        if(query.isEmpty() || haystack.isEmpty()) return query.isEmpty();
+        String[] terms=query.split(" ");
+        for(String term:terms) if(!term.isEmpty() && !haystack.contains(term)) return false;
+        return true;
     }
 
     void addPageRow(Page p) {
@@ -131,7 +140,7 @@ public class MainActivity extends Activity {
         card.addView(h);
 
         Button open=new Button(this);
-        open.setText("باز کردن جدول به شکل عکس اصلی");
+        open.setText("باز کردن صفحه");
         open.setOnClickListener(v->showPage(p.number));
         card.addView(open,new LinearLayout.LayoutParams(-1,52));
 
@@ -152,15 +161,17 @@ public class MainActivity extends Activity {
     }
 
     String norm(String s){
-        return s.replace('ي','ی').replace('ى','ی').replace('ك','ک')
+        return s.replace('ي','ی').replace('ى','ی').replace('ك','ک').replace('ؤ','و').replace('إ','ا').replace('أ','ا')
                 .replace('ۀ','ه').replace('ة','ه')
                 .replace('٠','۰').replace('١','۱').replace('٢','۲').replace('٣','۳')
                 .replace('٤','۴').replace('٥','۵').replace('٦','۶').replace('٧','۷')
-                .replace('٨','۸').replace('٩','۹').replace("\u200c"," ")
+                .replace('٨','۸').replace('٩','۹').replace("\u200c"," ").replaceAll("[\\u064B-\\u065F\\u0670]","").replaceAll("\\s+"," ")
                 .toLowerCase(Locale.ROOT);
     }
 
     void showPage(int n){
+        final Page page=pageByNumber.get(n);
+        if(page==null) return;
         final Dialog dialog=new Dialog(this);
         LinearLayout box=new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -171,10 +182,14 @@ public class MainActivity extends Activity {
         top.setOrientation(LinearLayout.VERTICAL);
         top.setPadding(12,8,12,8);
 
-        TextView title=label("صفحه "+n+"  |  مبدا: قزوین");
+        TextView title=label("صفحه "+n+" از "+pages.size());
         title.setTextSize(19);
         title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        top.addView(title);
+        Button prev=new Button(this); prev.setText("‹ قبلی"); prev.setOnClickListener(v->{ dialog.dismiss(); if(n>1) showPage(n-1); });
+        Button next=new Button(this); next.setText("بعدی ›"); next.setOnClickListener(v->{ dialog.dismiss(); if(n<pages.size()) showPage(n+1); });
+        top.addView(next,new LinearLayout.LayoutParams(90,52));
+        top.addView(title,new LinearLayout.LayoutParams(0,52,1));
+        top.addView(prev,new LinearLayout.LayoutParams(90,52));
 
         EditText localSearch=new EditText(this);
         localSearch.setHint("جستجو فقط در همین جدول");
@@ -221,8 +236,8 @@ public class MainActivity extends Activity {
             public void onTextChanged(CharSequence s,int st,int b,int c){
                 String q=norm(s.toString().trim());
                 if(q.isEmpty()){ localStatus.setVisibility(View.GONE); return; }
-                Page p=pages.get(n-1);
-                boolean found=norm(p.text).contains(q);
+                Page p=pageByNumber.get(n);
+                boolean found=p!=null && matchesQuery(norm(p.text),q);
                 localStatus.setText(found ? "در متن این جدول پیدا شد" : "در متن استخراج‌شده این جدول پیدا نشد");
                 localStatus.setTextColor(found ? Color.rgb(0,120,60) : Color.rgb(170,0,0));
                 localStatus.setVisibility(View.VISIBLE);
@@ -268,20 +283,20 @@ public class MainActivity extends Activity {
                 }catch(Exception ignored){}
                 if(!json.isEmpty()){
                     JSONObject jo=new JSONObject(json);
-                    for(int i=1;i<=53;i++) pages.add(new Page(i,jo.optString(String.valueOf(i),"")));
+                    for(int i=1;i<=53;i++){ Page p=new Page(i,jo.optString(String.valueOf(i),"")); pages.add(p); pageByNumber.put(i,p); }
                 }else{
                     for(int i=1;i<=53;i++){
                         File f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%02d",i)+".txt");
                         String t="";
                         if(f.exists()) t=new String(read(f),StandardCharsets.UTF_8);
-                        pages.add(new Page(i,t));
+                        Page p=new Page(i,t); pages.add(p); pageByNumber.put(i,p);
                     }
                 }
                 return "ok";
             }catch(Exception e){return e.toString();}
         }
         protected void onPostExecute(String r){
-            if("ok".equals(r)) runSearch();
+            if("ok".equals(r)){ loaded=true; runSearch(); }
             else status.setText("خطا در آماده‌سازی: "+r);
         }
     }

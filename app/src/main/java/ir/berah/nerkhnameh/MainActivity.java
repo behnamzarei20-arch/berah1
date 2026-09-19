@@ -15,6 +15,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.zip.*;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     LinearLayout root, results;
@@ -183,12 +184,26 @@ public class MainActivity extends Activity {
                     }
                     zin.close();
                 }
-                for(int i=1;i<=53;i++){
-                    File f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%02d",i)+".txt");
-                    if(!f.exists()) f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%03d",i)+".txt");
-                    String t="";
-                    if(f.exists()) t=new String(read(f),StandardCharsets.UTF_8);
-                    pages.add(new Page(i,t));
+                String json="";
+                try {
+                    InputStream jin=getAssets().open("ocr_all.json");
+                    ByteArrayOutputStream jb=new ByteArrayOutputStream();
+                    byte[] bx=new byte[8192]; int jn;
+                    while((jn=jin.read(bx))>0) jb.write(bx,0,jn);
+                    jin.close();
+                    json=new String(jb.toByteArray(),StandardCharsets.UTF_8);
+                } catch(Exception ignored) {}
+                if(!json.isEmpty()){
+                    JSONObject jo=new JSONObject(json);
+                    for(int i=1;i<=53;i++) pages.add(new Page(i,jo.optString(String.valueOf(i),"")));
+                } else {
+                    for(int i=1;i<=53;i++){
+                        File f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%02d",i)+".txt");
+                        if(!f.exists()) f=new File(dataDir,"ocr/page-"+String.format(Locale.US,"%03d",i)+".txt");
+                        String t="";
+                        if(f.exists()) t=new String(read(f),StandardCharsets.UTF_8);
+                        pages.add(new Page(i,t));
+                    }
                 }
                 return "ok";
             }catch(Exception e){ return e.toString(); }

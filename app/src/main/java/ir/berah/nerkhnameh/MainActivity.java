@@ -1,4 +1,4 @@
-package ir.berah.nerkhnameh;
+package ir.berah.nerkhnameh1405;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -177,7 +177,14 @@ public class MainActivity extends Activity {
                     ZipInputStream zin=new ZipInputStream(new BufferedInputStream(in));
                     ZipEntry e; byte[] buf=new byte[8192];
                     while((e=zin.getNextEntry())!=null){
-                        File out=new File(dataDir,e.getName()); out.getParentFile().mkdirs();
+                        File out=new File(dataDir,e.getName());
+                        if(e.isDirectory()){
+                            out.mkdirs();
+                            zin.closeEntry();
+                            continue;
+                        }
+                        File parent=out.getParentFile();
+                        if(parent!=null) parent.mkdirs();
                         FileOutputStream fos=new FileOutputStream(out);
                         int k; while((k=zin.read(buf))>0) fos.write(buf,0,k);
                         fos.close(); zin.closeEntry();

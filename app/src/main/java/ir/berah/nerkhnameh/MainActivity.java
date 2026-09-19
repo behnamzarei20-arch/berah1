@@ -188,21 +188,19 @@ public class MainActivity extends Activity {
         box.addView(top);
 
         FrameLayout frame=new FrameLayout(this);
-        HorizontalScrollView hs=new HorizontalScrollView(this);
         ScrollView vs=new ScrollView(this);
-        LinearLayout holder=new LinearLayout(this);
-        holder.setGravity(Gravity.CENTER);
+        vs.setFillViewport(true);
         ImageView im=new ImageView(this);
         im.setAdjustViewBounds(true);
         im.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        im.setBackgroundColor(Color.WHITE);
         File f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%02d",n)+".jpg");
         if(!f.exists()) f=new File(dataDir,"pages/page-"+String.format(Locale.US,"%03d",n)+".jpg");
         Bitmap bm=BitmapFactory.decodeFile(f.getAbsolutePath());
-        im.setImageBitmap(bm);
-        holder.addView(im,new LinearLayout.LayoutParams(-2,-2));
-        vs.addView(holder,new ScrollView.LayoutParams(-2,-2));
-        hs.addView(vs,new HorizontalScrollView.LayoutParams(-2,-2));
-        frame.addView(hs,new FrameLayout.LayoutParams(-1,-1));
+        if(bm!=null) im.setImageBitmap(bm);
+        im.setContentDescription("تصویر کامل صفحه "+n);
+        vs.addView(im,new ScrollView.LayoutParams(-1,-2));
+        frame.addView(vs,new FrameLayout.LayoutParams(-1,-1));
 
         TextView localStatus=label("");
         localStatus.setTextSize(14);

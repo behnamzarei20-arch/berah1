@@ -1,0 +1,13 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'ir.berah.nerkhnameh'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'ir.berah.nerkhnameh'
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+}

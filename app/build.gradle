@@ -1,14 +1,14 @@
 plugins { id 'com.android.application' }
 
 android {
-    namespace 'ir.berah.nerkhnameh'
+    namespace 'ir.berah.nerkhnameh1405'
     compileSdk 34
     defaultConfig {
-        applicationId 'ir.berah.nerkhnameh'
+        applicationId 'ir.berah.nerkhnameh1405'
         minSdk 23
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

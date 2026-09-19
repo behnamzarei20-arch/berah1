@@ -1,6 +1,7 @@
 package ir.berah.nerkhnameh;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.os.Bundle;
 import android.os.AsyncTask;
 import android.graphics.BitmapFactory;
@@ -8,6 +9,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
 import android.widget.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;

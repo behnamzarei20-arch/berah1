@@ -107,7 +107,7 @@ public class MainActivity extends Activity {
         }
 
         ArrayList<Page> found=new ArrayList<>();
-        for(Page p:pages) if(matchesQuery(norm(p.text), q)) found.add(p);
+        for(Page p:pages) if(matchesQuery(p.text + " صفحه " + p.number + " نرخنامه قزوین", q)) found.add(p);
         int count=found.size();
         for(Page p:found) addPageRow(p);
         status.setText(count==0 ? "نتیجه‌ای پیدا نشد" : count+" صفحه مرتبط پیدا شد");
@@ -115,36 +115,49 @@ public class MainActivity extends Activity {
     }
 
     boolean matchesQuery(String haystack, String query){
-        if(query.isEmpty()) return true;
-        if(haystack.isEmpty()) return false;
-        String h=compact(haystack);
-        String q=compact(query);
-        if(h.contains(q)) return true;
-        String[] terms=query.split(" ");
-        int matched=0, total=0;
-        for(String term:terms){
-            if(term.isEmpty()) continue;
+        String q=norm(query).trim();
+        if(q.isEmpty()) return true;
+        String h=norm(haystack);
+        if(h.isEmpty()) return false;
+        String hc=compact(h), qc=compact(q);
+        if(!qc.isEmpty() && hc.contains(qc)) return true;
+        String[] terms=q.split(" ");
+        int total=0, matched=0;
+        for(String raw:terms){
+            String t=compact(raw);
+            if(t.length()==0) continue;
             total++;
-            String t=compact(term);
-            if(h.contains(t) || fuzzyContains(h,t)) matched++;
+            if(hc.contains(t) || fuzzyContains(h,t) || fuzzySubsequence(hc,t)) matched++;
         }
         if(total==0) return false;
-        return matched==total || (total>=2 && matched>=total-1);
+        if(matched==total || (total>=2 && matched>=total-1)) return true;
+        return total==1 && fuzzyContains(h,qc);
     }
 
     String compact(String s){
-        return norm(s).replaceAll("[^\p{L}\p{Nd}]","");
+        return norm(s).replace("\u0640","").replaceAll("[^\\p{L}\\p{Nd}]","");
     }
 
     boolean fuzzyContains(String haystack, String term){
-        if(term.length()<4) return false;
-        int maxErr=term.length()>=7 ? 2 : 1;
+        String t=compact(term);
+        if(t.length()<2) return false;
         String[] words=norm(haystack).split(" ");
-        for(String w:words){
-            if(Math.abs(w.length()-term.length())>maxErr) continue;
-            if(editDistanceAtMost(w,term,maxErr)) return true;
+        for(String raw:words){
+            String w=compact(raw);
+            if(w.length()==0) continue;
+            int maxErr=t.length()>=8 ? 2 : (t.length()>=4 ? 1 : 0);
+            if(Math.abs(w.length()-t.length())<=maxErr && editDistanceAtMost(w,t,maxErr)) return true;
+            if(t.length()>=4 && (w.contains(t) || t.contains(w))) return true;
         }
         return false;
+    }
+
+    boolean fuzzySubsequence(String haystack, String term){
+        if(term.length()<4) return false;
+        int ti=0;
+        for(int i=0;i<haystack.length() && ti<term.length();i++)
+            if(haystack.charAt(i)==term.charAt(ti)) ti++;
+        return ti>=term.length()-1;
     }
 
     boolean editDistanceAtMost(String a,String b,int limit){
@@ -276,7 +289,7 @@ public class MainActivity extends Activity {
                 String q=norm(s.toString().trim());
                 if(q.isEmpty()){ localStatus.setVisibility(View.GONE); return; }
                 Page p=pageByNumber.get(n);
-                boolean found=p!=null && matchesQuery(norm(p.text),q);
+                boolean found=p!=null && matchesQuery(p.text + " صفحه " + n + " نرخنامه قزوین",q);
                 localStatus.setText(found ? "در متن این جدول پیدا شد" : "در متن استخراج‌شده این جدول پیدا نشد");
                 localStatus.setTextColor(found ? Color.rgb(0,120,60) : Color.rgb(170,0,0));
                 localStatus.setVisibility(View.VISIBLE);
